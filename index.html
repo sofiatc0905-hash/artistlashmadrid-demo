@@ -241,7 +241,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     opacity: 0;
     animation: fadeUp 1s 1.6s forwards;
   }
@@ -253,9 +253,19 @@
   }
   .scroll-line {
     width: 1px;
-    height: 48px;
+    height: 44px;
     background: linear-gradient(to bottom, var(--gold), transparent);
-    animation: scrollPulse 2s 2s infinite;
+    transform: scaleY(0);
+    transform-origin: top;
+    animation: scrollDrop 2.4s 2.2s ease-in-out infinite;
+  }
+  @keyframes scrollDrop {
+    0%   { transform: scaleY(0); transform-origin: top; opacity: 0; }
+    15%  { opacity: 1; }
+    50%  { transform: scaleY(1); transform-origin: top; }
+    51%  { transform-origin: bottom; }
+    85%  { transform: scaleY(0); transform-origin: bottom; opacity: 1; }
+    100% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
   }
 
   /* ── FRANJA HORIZONTAL ── */
@@ -270,7 +280,7 @@
     display: flex;
     gap: 0;
     white-space: nowrap;
-    animation: marquee 22s linear infinite;
+    will-change: transform;
   }
   .marquee-item {
     display: inline-flex;
@@ -771,10 +781,6 @@
   @keyframes marquee {
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
-  }
-  @keyframes scrollPulse {
-    0%, 100% { opacity: 1; transform: scaleY(1); }
-    50% { opacity: 0.3; transform: scaleY(0.5); transform-origin: top; }
   }
   @keyframes shimmer {
     0% { opacity: 0.3; }
@@ -1277,7 +1283,32 @@
   }
   animateParticles();
 
-  // ── NAVBAR SCROLL ──
+  // ── MARQUEE controlado por velocidad (px/s) ──
+  (function() {
+    const track = document.getElementById('marqueeTrack');
+    if (!track) return;
+    // Duplicar contenido hasta tener al menos 3x el ancho visible para loop suave
+    const fill = () => {
+      while (track.scrollWidth < window.innerWidth * 3) {
+        track.innerHTML += track.innerHTML;
+      }
+    };
+    fill();
+    const PX_PER_SEC = 55; // velocidad constante
+    let offset = 0;
+    let last = null;
+    const half = () => track.scrollWidth / 2;
+    function step(ts) {
+      if (!last) last = ts;
+      const dt = (ts - last) / 1000;
+      last = ts;
+      offset += PX_PER_SEC * dt;
+      if (offset >= half()) offset -= half();
+      track.style.transform = `translateX(-${offset}px)`;
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  })();
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
     navbar.classList.toggle('scrolled', window.scrollY > 60);
