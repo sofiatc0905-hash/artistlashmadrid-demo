@@ -235,37 +235,46 @@
   }
   .hero-scroll {
     position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 36px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: 60px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
     opacity: 0;
     animation: fadeUp 1s 1.6s forwards;
+    pointer-events: none;
   }
   .hero-scroll span {
     font-size: 9px;
-    letter-spacing: 0.25em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--muted);
+    white-space: nowrap;
   }
   .scroll-line {
     width: 1px;
-    height: 44px;
-    background: linear-gradient(to bottom, var(--gold), transparent);
-    transform: scaleY(0);
-    transform-origin: top;
-    animation: scrollDrop 2.4s 2.2s ease-in-out infinite;
+    height: 40px;
+    background: rgba(201,169,110,0.15);
+    position: relative;
+    overflow: hidden;
   }
-  @keyframes scrollDrop {
-    0%   { transform: scaleY(0); transform-origin: top; opacity: 0; }
-    15%  { opacity: 1; }
-    50%  { transform: scaleY(1); transform-origin: top; }
-    51%  { transform-origin: bottom; }
-    85%  { transform: scaleY(0); transform-origin: bottom; opacity: 1; }
-    100% { transform: scaleY(0); transform-origin: bottom; opacity: 0; }
+  .scroll-line::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent 0%, var(--gold) 50%, transparent 100%);
+    animation: scrollTravel 1.8s 2.2s ease-in-out infinite;
+    transform: translateY(-100%);
+  }
+  @keyframes scrollTravel {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(200%); }
   }
 
   /* ── FRANJA HORIZONTAL ── */
@@ -868,8 +877,8 @@
     <a href="#servicios" class="btn-ghost">Ver servicios</a>
   </div>
   <div class="hero-scroll">
-    <div class="scroll-line"></div>
     <span>Descubrir</span>
+    <div class="scroll-line"></div>
   </div>
 </section>
 
@@ -1283,28 +1292,42 @@
   }
   animateParticles();
 
-  // ── MARQUEE controlado por velocidad (px/s) ──
+  // ── MARQUEE velocidad constante (px/s), mobile-safe ──
   (function() {
     const track = document.getElementById('marqueeTrack');
     if (!track) return;
-    // Duplicar contenido hasta tener al menos 3x el ancho visible para loop suave
-    const fill = () => {
-      while (track.scrollWidth < window.innerWidth * 3) {
-        track.innerHTML += track.innerHTML;
-      }
-    };
-    fill();
-    const PX_PER_SEC = 55; // velocidad constante
+
+    // Capturar el ancho del set original ANTES de duplicar
+    const originalItems = Array.from(track.children);
+    const originalHTML = track.innerHTML;
+
+    // Duplicar hasta cubrir al menos 4× el viewport
+    while (track.scrollWidth < window.innerWidth * 4) {
+      track.insertAdjacentHTML('beforeend', originalHTML);
+    }
+
+    // Medir el ancho exacto de UN set completo (mitad del contenido duplicado inicial)
+    // Lo hacemos contando items originales
+    const itemCount = originalItems.length;
+    const totalItems = track.children.length;
+    // offsetWidth del primer set = scrollWidth * (itemCount / totalItems)
+    // Más robusto: medir sumando offsetWidth de los primeros itemCount hijos
+    let setWidth = 0;
+    for (let i = 0; i < itemCount; i++) {
+      setWidth += track.children[i].getBoundingClientRect().width;
+    }
+
+    const PX_PER_SEC = 55;
     let offset = 0;
     let last = null;
-    const half = () => track.scrollWidth / 2;
+
     function step(ts) {
       if (!last) last = ts;
-      const dt = (ts - last) / 1000;
+      const dt = Math.min((ts - last) / 1000, 0.05); // clamp para evitar saltos tras blur
       last = ts;
       offset += PX_PER_SEC * dt;
-      if (offset >= half()) offset -= half();
-      track.style.transform = `translateX(-${offset}px)`;
+      if (offset >= setWidth) offset -= setWidth;
+      track.style.transform = 'translateX(-' + offset + 'px)';
       requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
